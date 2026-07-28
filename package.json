@@ -1,0 +1,18 @@
+{
+  "name": "claude-for-speed-hk",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Hong Kong street racing — drive a KMB double decker, a green minibus, a red taxi or an ice cream van through Victoria Harbour.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.185.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
