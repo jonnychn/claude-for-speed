@@ -92,14 +92,25 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   const fwd = forwardVector(body.yaw);
   const rgt = rightVector(body.yaw);
   const angle = Math.atan2(_v.dot(rgt), Math.max(0.5, _v.dot(fwd)));
-  const wantSteer = THREE.MathUtils.clamp(angle * 1.9, -1, 1);
-  driver.steerState += (wantSteer - driver.steerState) * Math.min(1, dt / driver.reaction);
+
+  // Catch a slide. Without this the aim-at-a-point controller keeps winding on
+  // lock as the car rotates away, which turns every twitch into a full spin.
+  const sideslip = Math.atan2(body.w, Math.max(2, Math.abs(body.u)));
+  const counter = THREE.MathUtils.clamp(sideslip * 2.2, -1, 1);
+  const slideBlend = THREE.MathUtils.clamp((Math.abs(sideslip) - 0.12) / 0.25, 0, 1);
+
+  const wantSteer = THREE.MathUtils.clamp(
+    THREE.MathUtils.lerp(angle * 1.9, counter, slideBlend), -1, 1
+  );
+  // React faster the more sideways it is — a slide is not the moment to dawdle.
+  const lag = driver.reaction * (1 - slideBlend * 0.65);
+  driver.steerState += (wantSteer - driver.steerState) * Math.min(1, dt / lag);
 
   // --- how fast dare we go ----------------------------------------------
-  const probe = 22 + spd * 1.7;
+  const probe = 30 + spd * 3.0;
   const worst = track.worstCurvature(near.index + Math.round(6 * perMetre), probe);
   const gripLimit = worst > 1e-4
-    ? Math.sqrt((body.spec.grip * 9.81 * 0.92) / worst)
+    ? Math.sqrt((body.spec.grip * 9.81 * 0.78) / worst)
     : Infinity;
 
   const cap = body.spec.topSpeed * driver.skill * rubber;
@@ -114,8 +125,16 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   // Off the racing surface? Back off and get back on.
   if (Math.abs(near.lateral) > track.halfWidth) { throttle *= 0.55; brake = Math.max(brake, 0.2); }
 
-  // Handbrake only when it's genuinely pointing the wrong way.
-  const handbrake = (Math.abs(angle) > 0.95 && spd > 12 && driver.aggression > 0.8) ? 1 : 0;
+  // Mid-slide, trail off both pedals and let the front tyres pull it straight.
+  // Braking here loads the front and unloads the rear, which deepens the spin.
+  if (slideBlend > 0) {
+    brake *= 1 - slideBlend;
+    throttle *= 1 - slideBlend * 0.7;
+  }
+
+  // No handbrake. Firing it at a large heading error — which is exactly what a
+  // slide produces — drops rear grip and guarantees the spin it reacts to.
+  const handbrake = 0;
 
   // Boost down the straights.
   const boost = (gripLimit > cap * 1.15 && spd > cap * 0.45 && driver.boostGreed > 0.25) ? 1 : 0;

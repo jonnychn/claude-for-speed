@@ -36,17 +36,27 @@ export function speed(body) {
   return Math.hypot(body.u, body.w);
 }
 
-/** Saturating tyre: linear near zero slip, flattens out at mu * load. */
-function tyreForce(slipAngle, cornerStiffness, grip) {
-  const peak = Math.max(1, grip);
-  return -peak * Math.tanh((cornerStiffness * slipAngle) / peak);
+/**
+ * Saturating tyre: linear near zero slip, flattens out at mu * load.
+ *
+ * @param slipAngle  radians
+ * @param stiffness  normalised slip stiffness: the tyre saturates at roughly
+ *                   1/stiffness radians of slip, so 9 means peak grip at ~6°.
+ * @param gripLoad   mu * Fz for this axle, in newtons — the peak force
+ * Dividing the slip term by the load here (rather than leaving it normalised)
+ * cancels the load out of the whole expression and leaves the tyre making
+ * `stiffness` newtons per radian, which is no cornering force at all.
+ */
+function tyreForce(slipAngle, stiffness, gripLoad) {
+  const peak = Math.max(1, gripLoad);
+  return -peak * Math.tanh(stiffness * slipAngle);
 }
 
 export function step(body, input, dt) {
   const s = body.spec;
   const m = s.mass;
-  const a = s.wheelbase * s.frontBias;        // CG to front axle
-  const b = s.wheelbase * (1 - s.frontBias);  // CG to rear axle
+  const a = s.wheelbase * s.cgBias;        // CG to front axle
+  const b = s.wheelbase * (1 - s.cgBias);  // CG to rear axle
   const Iz = m * (s.wheelbase * s.wheelbase * 0.16 + s.width * s.width * 0.08);
 
   // --- steering ----------------------------------------------------------
@@ -67,10 +77,12 @@ export function step(body, input, dt) {
 
   // --- weight transfer ---------------------------------------------------
   // Longitudinal accel shifts load between the axles; a tall bus shifts a lot more.
-  const staticFront = m * GRAVITY * (1 - s.frontBias);
-  const staticRear = m * GRAVITY * s.frontBias;
+  const staticFront = m * GRAVITY * (1 - s.cgBias);
+  const staticRear = m * GRAVITY * s.cgBias;
+  // Capped fairly tightly: a real car's brake bias and suspension stop the rear
+  // going light enough to snap the moment you brake in a corner.
   const transfer = THREE.MathUtils.clamp(
-    (body.lastAccel || 0) * m * s.cgHeight / s.wheelbase, -staticFront * 0.7, staticRear * 0.7
+    (body.lastAccel || 0) * m * s.cgHeight / s.wheelbase, -staticFront * 0.45, staticRear * 0.45
   );
   const loadFront = Math.max(200, staticFront - transfer);
   const loadRear = Math.max(200, staticRear + transfer);
@@ -169,7 +181,14 @@ export function clampToTrack(body, track, hint) {
 
   body.w -= closing * intoWall * 1.55;         // bounce
   body.u *= 0.955 - Math.min(0.25, impact * 0.02);
-  body.r -= near.normal.dot(forwardVector(body.yaw)) * sign * 0.55 * Math.min(1, Math.abs(body.u) / 18);
+
+  // Yaw kick from the corner that hit first, scaled by the closing speed we
+  // just cancelled. Sizing it to the actual impact makes it a one-off impulse:
+  // a constant torque here would keep spinning a car that is merely sliding
+  // along the wall, since this runs every substep the car is out of bounds.
+  const nose = near.normal.dot(forwardVector(body.yaw)) * sign;
+  body.r -= THREE.MathUtils.clamp(nose * Math.max(0, closing) * 0.05, -0.6, 0.6);
+  body.r = THREE.MathUtils.clamp(body.r, -2.5, 2.5);
   body.impact = Math.min(1, body.impact + impact * 0.06);
 
   return { near, impact };

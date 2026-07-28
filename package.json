@@ -3,11 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Hong Kong street racing — drive a KMB double decker, a green minibus, a red taxi or an ice cream van through Victoria Harbour.",
+  "description": "Hong Kong street racing \u2014 drive a KMB double decker, a green minibus, a red taxi or an ice cream van through Victoria Harbour.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
     "three": "^0.185.0"
