@@ -5,14 +5,24 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 
 import { Track } from '../src/track.js';
-import { createBody, step, clampToTrack, resolveCarCollision, speed } from '../src/physics.js';
+import { createBody, step, clampToTrack, resolveCarCollision, speed, forwardVector } from '../src/physics.js';
 import { createDriver, driveAI } from '../src/ai.js';
 import { VEHICLES, getVehicle } from '../src/vehicles.js';
 
 const DT = 1 / 120;
 const track = new Track();
+const UP = new THREE.Vector3(0, 1, 0);
+
+/**
+ * The direction the player means by "right": for a camera looking along the
+ * car's forward vector with Y up, screen right is forward x up.
+ */
+function screenRight(yaw) {
+  return new THREE.Vector3().crossVectors(forwardVector(yaw), UP);
+}
 
 function spawn(def, gridIndex = 0) {
   const slot = track.gridSlot(gridIndex);
@@ -55,6 +65,45 @@ test('a steered car actually changes heading', () => {
   assert.ok(
     Math.abs(car.near.lateral - lateralBefore) > 1,
     'steering should move the car across the road'
+  );
+});
+
+test('steering right goes right, and left goes left', () => {
+  for (const [label, input, expect] of [['right', 1, 1], ['left', -1, -1]]) {
+    const car = spawn(getVehicle('taxi'));
+    for (let i = 0; i < 240; i++) advance(car, { throttle: 1, brake: 0, steer: 0, handbrake: 0, boost: 0 });
+
+    const from = car.body.pos.clone();
+    const right0 = screenRight(car.body.yaw);
+    for (let i = 0; i < 150; i++) {
+      advance(car, { throttle: 0.7, brake: 0, steer: input, handbrake: 0, boost: 0 });
+    }
+
+    const sideways = car.body.pos.clone().sub(from).dot(right0);
+    const heading = forwardVector(car.body.yaw).dot(right0);
+
+    assert.ok(
+      Math.sign(sideways) === expect && Math.abs(sideways) > 1,
+      `steering ${label} moved the car ${sideways.toFixed(1)}m to the ` +
+      `${sideways > 0 ? 'right' : 'left'} — steering is inverted`
+    );
+    assert.ok(
+      Math.sign(heading) === expect,
+      `steering ${label} swung the nose the wrong way`
+    );
+  }
+});
+
+test('the body rolls to the outside of a corner', () => {
+  const car = spawn(getVehicle('bus'));
+  for (let i = 0; i < 300; i++) advance(car, { throttle: 1, brake: 0, steer: 0, handbrake: 0, boost: 0 });
+  for (let i = 0; i < 90; i++) advance(car, { throttle: 0.7, brake: 0, steer: 1, handbrake: 0, boost: 0 });
+
+  // Turning right should throw the body over to the left. A positive rotation
+  // about the car's forward axis tips the roof right, so lean must go negative.
+  assert.ok(
+    car.body.lean < -0.01,
+    `turning right leaned the body the wrong way (${car.body.lean.toFixed(3)})`
   );
 });
 

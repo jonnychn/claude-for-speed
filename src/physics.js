@@ -28,7 +28,17 @@ export function forwardVector(yaw, out = new THREE.Vector3()) {
   return out.set(Math.sin(yaw), 0, Math.cos(yaw));
 }
 
-export function rightVector(yaw, out = new THREE.Vector3()) {
+/**
+ * The body's +lateral axis, which points LEFT: the true right of `forward` is
+ * `forward × up`, and this is its negation.
+ *
+ * Sign convention for the whole model, matching standard vehicle dynamics:
+ * yaw increases anticlockwise seen from above, so a positive yaw rate `r`, a
+ * positive body-lateral velocity `w`, and a positive road-wheel angle `delta`
+ * all mean a LEFT turn. Control input is the opposite, intuitive way round
+ * (positive = right) and is negated exactly once, in `step`.
+ */
+export function leftVector(yaw, out = new THREE.Vector3()) {
   return out.set(Math.cos(yaw), 0, -Math.sin(yaw));
 }
 
@@ -62,7 +72,9 @@ export function step(body, input, dt) {
   // --- steering ----------------------------------------------------------
   const v = Math.abs(body.u);
   const steerLimit = s.maxSteer / (1 + v * v * s.steerFalloff);
-  const target = input.steer * steerLimit;
+  // Input is right-positive for the player's sake; the body frame is
+  // left-positive. This is the single point where the two meet.
+  const target = -input.steer * steerLimit;
   body.steer += (target - body.steer) * Math.min(1, 12 * dt);
   const delta = body.steer;
 
@@ -131,14 +143,14 @@ export function step(body, input, dt) {
 
   body.yaw += body.r * dt;
   const fwd = forwardVector(body.yaw);
-  const rgt = rightVector(body.yaw);
+  const lft = leftVector(body.yaw);
   body.pos.addScaledVector(fwd, body.u * dt);
-  body.pos.addScaledVector(rgt, body.w * dt);
+  body.pos.addScaledVector(lft, body.w * dt);
 
   // --- cosmetics ---------------------------------------------------------
   const spd = speed(body);
   body.slip = THREE.MathUtils.clamp(Math.abs(body.w) / Math.max(6, spd) * 1.7, 0, 1);
-  const targetLean = THREE.MathUtils.clamp(-body.r * body.u * s.rollFactor, -0.28, 0.28);
+  const targetLean = THREE.MathUtils.clamp(body.r * body.u * s.rollFactor, -0.28, 0.28);
   body.lean += (targetLean - body.lean) * Math.min(1, 6 * dt);
   body.pitch += (THREE.MathUtils.clamp(-du * 0.012, -0.07, 0.07) - body.pitch) * Math.min(1, 7 * dt);
   body.wheelSpin += (body.u / s.wheelRadius) * dt;
@@ -174,8 +186,8 @@ export function clampToTrack(body, track, hint) {
   // Barrier. Push out, kill the inbound lateral velocity, scrub some speed.
   body.pos.addScaledVector(near.normal, -sign * (over - 1.1));
 
-  const rgt = rightVector(body.yaw);
-  const intoWall = rgt.dot(near.normal) * sign;
+  const lft = leftVector(body.yaw);
+  const intoWall = lft.dot(near.normal) * sign;
   const closing = body.w * intoWall;
   const impact = Math.max(0, closing) + Math.abs(body.u) * Math.abs(near.normal.dot(forwardVector(body.yaw))) * 0.25;
 
@@ -224,7 +236,7 @@ export function resolveCarCollision(a, b) {
 
 function applyWorldImpulse(body, ix, iz) {
   const fwd = forwardVector(body.yaw);
-  const rgt = rightVector(body.yaw);
+  const lft = leftVector(body.yaw);
   body.u += ix * fwd.x + iz * fwd.z;
-  body.w += ix * rgt.x + iz * rgt.z;
+  body.w += ix * lft.x + iz * lft.z;
 }
