@@ -1,0 +1,276 @@
+:root {
+  --neon-pink: #ff2d78;
+  --neon-cyan: #21e6ff;
+  --neon-gold: #ffc542;
+  --neon-jade: #2fe38b;
+  --ink: #05070f;
+  --panel: rgba(6, 10, 22, 0.82);
+  --edge: rgba(255, 255, 255, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05070f;
+  color: #eaf2ff;
+  font-family: "Avenir Next", "Segoe UI", "PingFang HK", "Microsoft JhengHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+
+/* ---------- shared bits ---------- */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 28px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 45, 120, 0.16), transparent 60%),
+    radial-gradient(90% 70% at 50% 100%, rgba(33, 230, 255, 0.14), transparent 60%),
+    rgba(3, 5, 12, 0.72);
+  backdrop-filter: blur(8px);
+  animation: fade 0.35s ease;
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.hidden { display: none !important; }
+
+.title {
+  text-align: center;
+  line-height: 1;
+}
+
+.title .zh {
+  font-size: clamp(26px, 3.6vw, 44px);
+  letter-spacing: 0.32em;
+  color: var(--neon-gold);
+  text-shadow: 0 0 18px rgba(255, 197, 66, 0.65);
+}
+
+.title .en {
+  margin-top: 8px;
+  font-size: clamp(26px, 3.5vw, 46px);
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(100deg, #fff 10%, var(--neon-pink) 45%, var(--neon-cyan) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px rgba(255, 45, 120, 0.4));
+}
+
+.title .sub {
+  margin-top: 10px;
+  font-size: clamp(11px, 1.4vw, 15px);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgba(234, 242, 255, 0.6);
+}
+
+.btn {
+  border: 1px solid var(--edge);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  color: #eaf2ff;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 13px;
+  padding: 13px 26px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:hover { transform: translateY(-2px); border-color: var(--neon-cyan); box-shadow: 0 0 22px rgba(33,230,255,0.28); }
+.btn.primary {
+  background: linear-gradient(100deg, var(--neon-pink), #ff6a3d);
+  border-color: transparent;
+  color: #fff;
+  padding: 16px 46px;
+  font-size: 15px;
+  box-shadow: 0 10px 34px rgba(255, 45, 120, 0.35);
+}
+.btn.primary:hover { box-shadow: 0 14px 44px rgba(255, 45, 120, 0.5); }
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; align-items: center; }
+
+.seg { display: flex; gap: 6px; padding: 5px; border: 1px solid var(--edge); border-radius: 12px; background: var(--panel); }
+.seg button {
+  border: 0;
+  white-space: nowrap; background: transparent; color: rgba(234,242,255,0.62); font: inherit; font-size: 12px;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+}
+.seg button.on { background: rgba(33,230,255,0.16); color: #fff; box-shadow: inset 0 0 0 1px rgba(33,230,255,0.4); }
+
+.label { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(234,242,255,0.45); }
+
+/* ---------- garage ---------- */
+
+/* Panel hugs the left edge; the right side stays clear so the rendered
+   vehicle behind the UI is the hero of the screen. */
+#garage {
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  gap: 0;
+  backdrop-filter: none;
+  background:
+    radial-gradient(70% 110% at 0% 50%, rgba(255, 45, 120, 0.16), transparent 62%),
+    linear-gradient(96deg,
+      rgba(3, 5, 12, 0.97) 0%,
+      rgba(3, 5, 12, 0.94) 32%,
+      rgba(3, 5, 12, 0.55) 46%,
+      rgba(3, 5, 12, 0.06) 62%,
+      rgba(3, 5, 12, 0) 74%);
+}
+
+#garage .panel {
+  width: min(540px, 48vw);
+  height: 100%;
+  padding: 22px 30px;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 13px;
+  overflow-y: auto;
+}
+#garage .panel::-webkit-scrollbar { display: none; }
+
+#garage .title { text-align: left; }
+/* The panel is narrow — let the wordmark and the mode switch fit inside it. */
+#garage .title .en { font-size: clamp(22px, 2.6vw, 38px); }
+#garage .seg { flex-wrap: wrap; }
+#garage #modeSeg button { font-size: 11px; padding: 8px 12px; letter-spacing: 0.08em; }
+#garage .cars { display: flex; flex-direction: column; gap: 8px; }
+#garage .opts { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+#garage .row { justify-content: flex-start; }
+#garage .btn.primary { align-self: flex-start; }
+#garage .keys { text-align: left; }
+
+@media (max-width: 900px) {
+  #garage { background: rgba(3, 5, 12, 0.9); }
+  #garage .panel { width: 100%; }
+  .car .tag { display: none; }
+}
+
+.car {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--edge);
+  background: var(--panel);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+.car::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, var(--tint, transparent) -30%, transparent 45%);
+  opacity: 0.28;
+}
+.car:hover { transform: translateX(4px); }
+.car.on { border-color: var(--tint, var(--neon-cyan)); box-shadow: 0 0 0 1px var(--tint), 0 14px 40px rgba(0,0,0,0.5); }
+
+.car .info { flex: 1; min-width: 0; }
+.car .zh { font-size: 16px; letter-spacing: 0.12em; color: var(--tint, #fff); }
+.car .en { font-size: 13px; font-weight: 800; letter-spacing: 0.03em; color: #eaf2ff; margin-left: 6px; }
+.car .tag { margin-top: 4px; font-size: 11px; line-height: 1.4; color: rgba(234,242,255,0.5); }
+
+.car .bars { display: flex; gap: 7px; flex: none; }
+.mini { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mini .track {
+  width: 6px; height: 30px; border-radius: 3px;
+  background: rgba(255,255,255,0.1);
+  display: flex; align-items: flex-end; overflow: hidden;
+}
+.mini i { display: block; width: 100%; background: var(--tint, var(--neon-cyan)); border-radius: 3px; }
+.mini span { font-size: 8px; letter-spacing: 0.06em; color: rgba(234,242,255,0.4); }
+
+.keys { font-size: 11px; letter-spacing: 0.16em; color: rgba(234,242,255,0.42); text-align: center; line-height: 1.9; }
+.keys b { color: rgba(234,242,255,0.85); font-weight: 700; }
+
+/* ---------- HUD ---------- */
+
+#hud { position: absolute; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
+#hud .box {
+  position: absolute;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 10px 14px;
+}
+
+#hud .tl { top: 18px; left: 18px; min-width: 172px; }
+#hud .tr { top: 18px; right: 18px; text-align: right; min-width: 140px; }
+#hud .br { right: 18px; bottom: 18px; padding: 8px; }
+
+.big { font-size: 26px; font-weight: 800; letter-spacing: 0.02em; }
+.mid { font-size: 17px; font-weight: 700; }
+.dim { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(234,242,255,0.42); }
+.split { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; }
+
+#speedo {
+  position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+#speedo .num { font-size: 60px; font-weight: 800; line-height: 0.9; text-shadow: 0 0 26px rgba(33,230,255,0.35); }
+#speedo .num small { font-size: 15px; font-weight: 700; letter-spacing: 0.22em; color: rgba(234,242,255,0.5); margin-left: 8px; }
+#speedo .gearline { display: flex; align-items: center; gap: 10px; }
+#speedo .gear {
+  border: 1px solid var(--edge); border-radius: 8px; background: var(--panel);
+  padding: 4px 12px; font-weight: 800; font-size: 14px; letter-spacing: 0.1em;
+}
+#rev { width: min(460px, 74vw); height: 6px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+#rev i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--neon-jade), var(--neon-gold) 68%, var(--neon-pink)); transition: width 0.06s linear; }
+
+#boostwrap { width: min(460px, 74vw); height: 5px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
+#boost { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--neon-cyan), #fff); }
+
+#minimap { display: block; width: 178px; height: 178px; }
+
+#toast {
+  position: absolute; left: 50%; top: 16%; transform: translateX(-50%);
+  text-align: center; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase;
+  font-size: clamp(20px, 3.4vw, 40px); text-shadow: 0 0 26px rgba(255,197,66,0.5);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+#toast.show { opacity: 1; }
+#toast .zh { display: block; font-size: 0.52em; letter-spacing: 0.4em; color: var(--neon-gold); margin-bottom: 6px; }
+
+#countdown {
+  position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%);
+  font-size: clamp(70px, 15vw, 190px); font-weight: 900; line-height: 1;
+  color: #fff; text-shadow: 0 0 50px rgba(255,45,120,0.7);
+}
+
+/* ---------- results ---------- */
+
+.table { width: min(560px, 92vw); border: 1px solid var(--edge); border-radius: 14px; background: var(--panel); overflow: hidden; }
+.table .r { display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; padding: 12px 16px; align-items: center; font-size: 14px; }
+.table .r + .r { border-top: 1px solid rgba(255,255,255,0.07); }
+.table .r.me { background: rgba(33,230,255,0.1); }
+.table .r .p { font-weight: 800; font-size: 17px; color: var(--neon-gold); }
+.table .r .t { color: rgba(234,242,255,0.6); font-variant-numeric: tabular-nums; }
