@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { Track } from './track.js';
 import { City } from './city.js';
 import { VEHICLES, getVehicle, buildModel } from './vehicles.js';
-import { createBody, step, clampToTrack, resolveCarCollision, speed, forwardVector, rightVector } from './physics.js';
+import { createBody, step, clampToTrack, resolveCarCollision, speed, forwardVector, leftVector } from './physics.js';
 import { createDriver, driveAI, driverName } from './ai.js';
 import { Effects } from './effects.js';
 import { Minimap } from './minimap.js';
@@ -507,15 +507,15 @@ class Game {
       const b = car.body;
       const spd = speed(b);
       const f = forwardVector(b.yaw);
-      const r = rightVector(b.yaw);
+      const lat = leftVector(b.yaw);
       const rearZ = -b.spec.wheelbase * 0.45;
 
       const sliding = b.slip > 0.24 || ((car.input?.handbrake ?? 0) > 0.5 && spd > 4);
       if (sliding && spd > 3) {
         const len = Math.max(0.6, spd * dt * 1.6);
         for (const side of [-1, 1]) {
-          const x = b.pos.x + f.x * rearZ + r.x * side * b.spec.width * 0.42;
-          const z = b.pos.z + f.z * rearZ + r.z * side * b.spec.width * 0.42;
+          const x = b.pos.x + f.x * rearZ + lat.x * side * b.spec.width * 0.42;
+          const z = b.pos.z + f.z * rearZ + lat.z * side * b.spec.width * 0.42;
           this.effects.emitSkid(x, z, b.yaw, 0.34, len);
           if (b.slip > 0.42 && Math.random() < 0.55) {
             this.effects.emitParticle(

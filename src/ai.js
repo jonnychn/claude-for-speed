@@ -2,7 +2,7 @@
 // Each rival gets a personality so the pack doesn't drive as one organism.
 
 import * as THREE from 'three';
-import { forwardVector, rightVector, speed } from './physics.js';
+import { forwardVector, leftVector, speed } from './physics.js';
 
 const NAMES = [
   { zh: '亞德', en: 'Ah Tak' },
@@ -71,7 +71,7 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
     if (dist > 34 || dist < 0.01) continue;
     const ahead = _v.dot(forwardVector(body.yaw, _target));
     if (ahead < 1) continue;
-    const side = _v.dot(rightVector(body.yaw, _target));
+    const side = _v.dot(leftVector(body.yaw, _target));
     if (Math.abs(side) > 5.5) continue;
     // Dive for whichever side has more room.
     const room = (other.near?.lateral ?? 0);
@@ -90,13 +90,18 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   // --- steer toward it ---------------------------------------------------
   _v.subVectors(_target, body.pos);
   const fwd = forwardVector(body.yaw);
-  const rgt = rightVector(body.yaw);
-  const angle = Math.atan2(_v.dot(rgt), Math.max(0.5, _v.dot(fwd)));
+  const lft = leftVector(body.yaw);
+  // Negated so this, and everything derived from it, is right-positive like
+  // the player's input — the body frame itself is left-positive.
+  const angle = Math.atan2(-_v.dot(lft), Math.max(0.5, _v.dot(fwd)));
 
   // Catch a slide. Without this the aim-at-a-point controller keeps winding on
   // lock as the car rotates away, which turns every twitch into a full spin.
+  // Positive sideslip means the nose points right of where the car is actually
+  // going — the tail has come round to the left — so you catch it by steering
+  // left, which is negative in the right-positive input convention.
   const sideslip = Math.atan2(body.w, Math.max(2, Math.abs(body.u)));
-  const counter = THREE.MathUtils.clamp(sideslip * 2.2, -1, 1);
+  const counter = THREE.MathUtils.clamp(-sideslip * 2.2, -1, 1);
   const slideBlend = THREE.MathUtils.clamp((Math.abs(sideslip) - 0.12) / 0.25, 0, 1);
 
   const wantSteer = THREE.MathUtils.clamp(
