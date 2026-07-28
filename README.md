@@ -11,6 +11,7 @@ run time — there are no binary assets in the repository.
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # static bundle in dist/
+npm test         # headless handling + AI tests
 ```
 
 ## The roster
@@ -38,6 +39,7 @@ npm run build    # static bundle in dist/
 | `Shift` | Nitrous |
 | `C` | Cycle chase / bonnet / cinematic camera |
 | `R` | Respawn on the racing line |
+| `H` | Dim or hide the on-screen control legend |
 | `P` / `Esc` | Pause |
 | `M` | Mute |
 
@@ -73,6 +75,15 @@ is, derives a grip-limited entry speed from it, and aims at a point on the
 spline offset toward the apex. Each driver has its own line bias, aggression,
 reaction lag and an occasional deliberate mistake, and the field rubber-bands
 gently toward the player so a race in the bus is still a race.
+
+### Tests
+
+`npm test` runs `test/handling.test.mjs` under the Node test runner. The physics,
+track and AI modules are free of DOM and WebGL, so a full lap simulates in
+milliseconds and the tests assert on behaviour rather than pixels: that steering
+input actually changes heading, that every vehicle develops real cornering force,
+that a car which clips a barrier recovers instead of spinning, and that all four
+AI drivers complete a lap while staying on the road.
 
 ### Debugging
 

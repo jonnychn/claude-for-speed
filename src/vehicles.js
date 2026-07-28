@@ -391,8 +391,8 @@ export const VEHICLES = [
     stats: { speed: 0.92, accel: 0.86, grip: 0.95, brawl: 0.3 },
     spec: {
       mass: 1600, height: 1.5, length: 4.85, width: 1.76, wheelbase: 2.85, wheelRadius: 0.32,
-      frontBias: 0.55, cgHeight: 0.52, maxSteer: 0.62, steerFalloff: 0.0016,
-      grip: 1.36, corneringFront: 9.0, corneringRear: 10.4,
+      cgBias: 0.46, cgHeight: 0.52, maxSteer: 0.62, steerFalloff: 0.0016,
+      grip: 1.36, corneringFront: 8.4, corneringRear: 11.5,
       engineForce: 11200, brakeForce: 17000, topSpeed: 58,
       rollFactor: 0.05, yawDamping: 1.7,
       boostPower: 1.28, boostDuration: 4.5, boostRecharge: 10,
@@ -409,8 +409,8 @@ export const VEHICLES = [
     stats: { speed: 0.82, accel: 0.78, grip: 0.7, brawl: 0.5 },
     spec: {
       mass: 2400, height: 2.6, length: 6.5, width: 2.0, wheelbase: 3.4, wheelRadius: 0.38,
-      frontBias: 0.52, cgHeight: 0.92, maxSteer: 0.55, steerFalloff: 0.0019,
-      grip: 1.2, corneringFront: 8.0, corneringRear: 9.0,
+      cgBias: 0.45, cgHeight: 0.92, maxSteer: 0.55, steerFalloff: 0.0019,
+      grip: 1.2, corneringFront: 7.4, corneringRear: 10.2,
       engineForce: 15800, brakeForce: 20500, topSpeed: 54,
       rollFactor: 0.09, yawDamping: 1.5,
       boostPower: 1.32, boostDuration: 5.2, boostRecharge: 8,
@@ -427,8 +427,8 @@ export const VEHICLES = [
     stats: { speed: 0.66, accel: 0.66, grip: 0.62, brawl: 0.62 },
     spec: {
       mass: 2900, height: 2.9, length: 6.2, width: 2.05, wheelbase: 3.3, wheelRadius: 0.37,
-      frontBias: 0.54, cgHeight: 1.02, maxSteer: 0.52, steerFalloff: 0.0021,
-      grip: 1.14, corneringFront: 7.4, corneringRear: 8.4,
+      cgBias: 0.44, cgHeight: 1.02, maxSteer: 0.52, steerFalloff: 0.0021,
+      grip: 1.14, corneringFront: 7.0, corneringRear: 9.6,
       engineForce: 16600, brakeForce: 19000, topSpeed: 48,
       rollFactor: 0.11, yawDamping: 1.4,
       boostPower: 1.38, boostDuration: 5.5, boostRecharge: 7.5,
@@ -445,8 +445,8 @@ export const VEHICLES = [
     stats: { speed: 0.58, accel: 0.55, grip: 0.5, brawl: 1.0 },
     spec: {
       mass: 11000, height: 4.4, length: 11.2, width: 2.5, wheelbase: 5.6, wheelRadius: 0.52,
-      frontBias: 0.48, cgHeight: 1.7, maxSteer: 0.46, steerFalloff: 0.0024,
-      grip: 1.02, corneringFront: 6.4, corneringRear: 7.4,
+      cgBias: 0.47, cgHeight: 1.7, maxSteer: 0.46, steerFalloff: 0.0024,
+      grip: 1.02, corneringFront: 6.0, corneringRear: 8.6,
       engineForce: 62000, brakeForce: 72000, topSpeed: 44,
       rollFactor: 0.17, yawDamping: 1.25,
       boostPower: 1.24, boostDuration: 6.0, boostRecharge: 9,

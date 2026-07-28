@@ -191,6 +191,7 @@ class Game {
     this.player = this.cars[0];
     this.totalLaps = cfg.mode === 'roam' ? Infinity : cfg.laps;
 
+    this.hintsFaded = false;
     this.ui.showRace(`${playerDef.zh} ${playerDef.en}`);
     this.ui.countdown(null);
     if (cfg.mode === 'roam') this.ui.toast('Free roam', '自由行', 2200);
@@ -293,7 +294,13 @@ class Game {
         this.#simulate(FIXED_DT);
         this.accumulator -= FIXED_DT;
       }
-      if (this.state === 'racing') this.raceTime += dt;
+      if (this.state === 'racing') {
+      this.raceTime += dt;
+      if (!this.hintsFaded && this.player && speed(this.player.body) > 14) {
+        this.hintsFaded = true;
+        this.ui.softenHints();
+      }
+    }
       this.city.update(dt);
       this.effects.update(dt);
       for (const car of this.cars) this.#syncModel(car, dt);
@@ -316,6 +323,7 @@ class Game {
       this.ui.toast(this.audio.enabled ? 'Sound on' : 'Sound off', '', 900);
     }
     if (this.input.tapped('KeyR') && this.player) this.#respawn(this.player);
+    if (this.input.tapped('KeyH')) this.ui.cycleHints();
   }
 
   #respawn(car) {

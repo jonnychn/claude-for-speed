@@ -72,6 +72,14 @@ export class UI {
           <div class="mid" id="hBest">--:--.---</div>
         </div>
         <div class="box br"><canvas id="minimap"></canvas></div>
+        <div class="box bl" id="hints">
+          <div class="hintrow"><span class="k">↑</span><span class="k">W</span> accelerate</div>
+          <div class="hintrow"><span class="k">↓</span><span class="k">S</span> brake / reverse</div>
+          <div class="hintrow"><span class="k">←</span><span class="k">→</span> steer</div>
+          <div class="hintrow"><span class="k">SHIFT</span> nitrous</div>
+          <div class="hintrow"><span class="k">SPACE</span> handbrake</div>
+          <div class="hintrow dimmer"><span class="k">H</span> hide · <span class="k">R</span> respawn · <span class="k">P</span> pause</div>
+        </div>
         <div id="speedo">
           <div class="num"><span id="hSpeed">0</span><small>KM/H</small></div>
           <div id="rev"><i id="hRev"></i></div>
@@ -122,6 +130,7 @@ export class UI {
       toast: root.querySelector('#toast'),
       countdown: root.querySelector('#countdown'),
       minimap: root.querySelector('#minimap'),
+      hints: root.querySelector('#hints'),
       rTable: root.querySelector('#rTable'),
       rTitle: root.querySelector('#rTitle'),
       rZh: root.querySelector('#rZh')
@@ -187,9 +196,21 @@ export class UI {
     this.el.pause.classList.add('hidden');
     this.el.hud.classList.remove('hidden');
     this.el.car.textContent = vehicleLabel;
+    this.el.hints.classList.remove('faded', 'hidden');
   }
 
   setPaused(on) { this.el.pause.classList.toggle('hidden', !on); }
+
+  /** Cycle the control legend: full -> faded -> hidden. */
+  cycleHints() {
+    const h = this.el.hints;
+    if (h.classList.contains('faded')) { h.classList.remove('faded'); h.classList.add('hidden'); }
+    else if (h.classList.contains('hidden')) h.classList.remove('hidden');
+    else h.classList.add('faded');
+  }
+
+  /** Dim the legend once the player is clearly driving. */
+  softenHints() { this.el.hints.classList.add('faded'); }
 
   setHud(s) {
     const e = this.el;
