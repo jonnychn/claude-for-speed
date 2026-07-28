@@ -9,7 +9,7 @@ import * as THREE from 'three';
 
 import { Track } from '../src/track.js';
 import { createBody, step, clampToTrack, resolveCarCollision, speed, forwardVector } from '../src/physics.js';
-import { createDriver, driveAI } from '../src/ai.js';
+import { createDriver, driveAI, takeRescue } from '../src/ai.js';
 import { VEHICLES, getVehicle } from '../src/vehicles.js';
 
 const DT = 1 / 120;
@@ -143,6 +143,42 @@ test('a glancing hit on the barrier does not send a car into a permanent spin', 
   );
 });
 
+test('holding the brake at a standstill backs the car up', () => {
+  const car = spawn(getVehicle('taxi'));
+  for (let i = 0; i < 240; i++) advance(car, { throttle: 1, brake: 0, steer: 0, handbrake: 0, boost: 0 });
+
+  const brake = { throttle: 0, brake: 1, steer: 0, handbrake: 0, boost: 0 };
+
+  // Braking to a stop must not immediately fling the car backwards.
+  for (let i = 0; i < 180; i++) advance(car, brake);
+  assert.ok(car.body.u > -3, `braking to a stop reversed too eagerly (${car.body.u.toFixed(2)} m/s)`);
+
+  const from = car.body.pos.clone();
+  for (let i = 0; i < 480; i++) advance(car, brake);
+
+  assert.ok(car.body.u < -2, `car did not reverse: ${(car.body.u * 3.6).toFixed(2)} km/h`);
+  assert.ok(from.distanceTo(car.body.pos) > 5, 'car reversed but barely moved');
+
+  // And it stays a manoeuvring crawl rather than winding up to road speed.
+  for (let i = 0; i < 1800; i++) advance(car, brake);
+  assert.ok(
+    Math.abs(car.body.u) < car.body.spec.reverseTopSpeed + 1,
+    `reverse ran away to ${(car.body.u * 3.6).toFixed(0)} km/h`
+  );
+
+  // Throttle gets you out of reverse again.
+  for (let i = 0; i < 360; i++) advance(car, { throttle: 1, brake: 0, steer: 0, handbrake: 0, boost: 0 });
+  assert.ok(car.body.u > 2, `could not drive forward out of reverse (${car.body.u.toFixed(2)} m/s)`);
+});
+
+test('the handbrake stops a car without reversing it', () => {
+  const car = spawn(getVehicle('taxi'));
+  for (let i = 0; i < 240; i++) advance(car, { throttle: 1, brake: 0, steer: 0, handbrake: 0, boost: 0 });
+  for (let i = 0; i < 900; i++) advance(car, { throttle: 0, brake: 0, steer: 0, handbrake: 1, boost: 0 });
+
+  assert.ok(Math.abs(car.body.u) < 0.2, `handbrake left the car moving at ${car.body.u.toFixed(2)} m/s`);
+});
+
 test('AI drivers complete a lap of the circuit', () => {
   const cars = VEHICLES.map((def, i) => {
     const car = spawn(def, i);
@@ -154,9 +190,27 @@ test('AI drivers complete a lap of the circuit', () => {
   const steps = 120 * 150; // 150 seconds of simulation
   let worstYaw = 0;
   let offTrackSamples = 0;
+  let crawlingSamples = 0;
+  let rescues = 0;
+
+  // Mirrors what main.js does: a driver that gives up gets put back on the line.
+  const rescue = (car) => {
+    const i = car.near.index + 4;
+    const t = track.tangentAt(i);
+    car.body.pos.copy(track.offsetPoint(i, 0));
+    car.body.yaw = Math.atan2(t.x, t.z);
+    car.body.u = Math.max(0, Math.min(car.body.u, 8));
+    car.body.w = 0;
+    car.body.r = 0;
+    car.body.reverseArm = 0;
+    rescues++;
+  };
 
   for (let n = 0; n < steps; n++) {
-    for (const car of cars) advance(car, driveAI(car, track, cars, DT));
+    for (const car of cars) {
+      advance(car, driveAI(car, track, cars, DT));
+      if (takeRescue(car.driver)) rescue(car);
+    }
     for (let i = 0; i < cars.length; i++) {
       for (let j = i + 1; j < cars.length; j++) resolveCarCollision(cars[i].body, cars[j].body);
     }
@@ -164,6 +218,7 @@ test('AI drivers complete a lap of the circuit', () => {
       car.odo.tick();
       worstYaw = Math.max(worstYaw, Math.abs(car.body.r));
       if (Math.abs(car.near.lateral) > track.halfWidth) offTrackSamples++;
+      if (speed(car.body) < 2.5) crawlingSamples++;
     }
   }
 
@@ -176,6 +231,12 @@ test('AI drivers complete a lap of the circuit', () => {
   }
 
   assert.ok(worstYaw < 3, `an AI car span up to ${worstYaw.toFixed(2)} rad/s`);
+
   const offTrackFraction = offTrackSamples / (steps * cars.length);
   assert.ok(offTrackFraction < 0.12, `AI spent ${(offTrackFraction * 100).toFixed(1)}% of the time off track`);
+
+  // The failure mode this guards against is a car wedged against a barrier for
+  // the rest of the race, which a lap-distance check alone can miss.
+  const crawlFraction = crawlingSamples / (steps * cars.length);
+  assert.ok(crawlFraction < 0.06, `AI spent ${(crawlFraction * 100).toFixed(1)}% of the time barely moving`);
 });

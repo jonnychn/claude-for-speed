@@ -20,6 +20,7 @@ export function createBody(spec, position, yaw) {
     wheelSpin: 0,  // wheel rotation for the visual mesh
     boost: 1,      // 0..1 nitrous tank
     boosting: false,
+    reverseArm: 0, // seconds the brake has been held at a crawl
     impact: 0      // decays after a crunch, used for the camera shake
   };
 }
@@ -111,15 +112,28 @@ export function step(body, input, dt) {
   const Fyf = tyreForce(alphaF, s.corneringFront, gripFront);
   const Fyr = tyreForce(alphaR, s.corneringRear, gripRear);
 
+  // --- reverse -----------------------------------------------------------
+  // The brake doubles as reverse, but only after it has been held for a moment
+  // at a crawl — otherwise braking to a stop would immediately fling you
+  // backwards. It stays armed while you are actually rolling back.
+  if (input.brake > 0 && (Math.abs(body.u) < 0.5 || body.u < 0)) body.reverseArm += dt;
+  else body.reverseArm = 0;
+  const reversing = body.reverseArm > 0.3;
+
   // --- longitudinal ------------------------------------------------------
   const drive = s.engineForce * boostMul * input.throttle * powerCurve(body.u, s.topSpeed * boostMul);
-  const braking = input.brake * s.brakeForce * Math.tanh(body.u * 2.5);
+  // While reversing the brake IS the throttle, so it must not also brake —
+  // the two cancelled and left the car creeping backwards at 0.2 km/h.
+  const braking = reversing ? 0 : input.brake * s.brakeForce * Math.tanh(body.u * 2.5);
   const hand = input.handbrake * s.brakeForce * 0.42 * Math.tanh(body.u * 2.5);
   const rolling = s.rollingResistance * body.u;
   const drag = s.drag * body.u * Math.abs(body.u);
 
-  // Reverse: holding brake at a standstill backs you out of the barrier.
-  const reverse = (input.brake > 0 && body.u < 0.6) ? -s.engineForce * 0.32 : 0;
+  // Tapered to a reverse top speed; left uncapped, drag alone would let a taxi
+  // reach about 136 km/h backwards.
+  const reverse = reversing
+    ? -s.engineForce * 0.3 * Math.max(0, 1 - Math.max(0, -body.u) / s.reverseTopSpeed)
+    : 0;
 
   let Fx = drive + reverse - braking - hand - rolling - drag;
   // Cornering eats grip that would otherwise go to acceleration (friction ellipse).
@@ -139,7 +153,11 @@ export function step(body, input, dt) {
   // Yaw damping keeps the heavy stuff from spinning forever after a hit.
   body.r *= 1 - Math.min(0.5, s.yawDamping * dt);
 
-  if (Math.abs(body.u) < 0.12 && input.throttle === 0) { body.u *= 0.86; body.w *= 0.86; body.r *= 0.86; }
+  // Settle to a dead stop when nothing is being asked of the car. This has to
+  // exclude reverse, or it cancels the reverse force as fast as it builds.
+  if (Math.abs(body.u) < 0.12 && input.throttle === 0 && !reversing) {
+    body.u *= 0.86; body.w *= 0.86; body.r *= 0.86;
+  }
 
   body.yaw += body.r * dt;
   const fwd = forwardVector(body.yaw);

@@ -460,6 +460,7 @@ for (const v of VEHICLES) {
   const s = v.spec;
   s.drag = s.engineForce / (s.topSpeed * s.topSpeed * 2.1);
   s.rollingResistance = s.mass * 0.022;
+  s.reverseTopSpeed = Math.max(5, s.topSpeed * 0.15);   // a manoeuvring crawl
 }
 
 export function getVehicle(id) {
