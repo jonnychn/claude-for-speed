@@ -26,6 +26,12 @@ export function createDriver(seed, skill) {
     reaction: 0.08 + hash(seed + 13) * 0.14, // steering lag, in seconds
     boostGreed: hash(seed + 19),
     steerState: 0,
+    stuckFor: 0,
+    shuntFor: 0,
+    gained: 0,
+    noProgressFor: 0,
+    lastArc: null,
+    rescue: false,
     avoidOffset: 0,
     mistake: 0,
     mistakeTimer: 4 + hash(seed + 31) * 12
@@ -44,6 +50,41 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   const { body, driver, near } = car;
   const spd = speed(body);
   const perMetre = track.count / track.length;
+
+  // --- getting going again ----------------------------------------------
+  // Measure progress along the track rather than speed: a car wedged against a
+  // barrier can thrash back and forth at a healthy speed while going nowhere,
+  // and a speed-based check keeps resetting itself on every shunt.
+  let advanced = near.arc - (driver.lastArc ?? near.arc);
+  if (advanced < -track.length / 2) advanced += track.length;
+  else if (advanced > track.length / 2) advanced -= track.length;
+  driver.lastArc = near.arc;
+
+  driver.gained += advanced;
+  driver.noProgressFor += dt;
+  if (driver.gained > 25) { driver.gained = 0; driver.noProgressFor = 0; }
+
+  // Under 25m in six seconds is not racing — it is stuck, or pointing the
+  // wrong way after a spin, neither of which reversing can fix.
+  if (driver.noProgressFor > 6) {
+    driver.rescue = true;
+    driver.noProgressFor = 0;
+    driver.gained = 0;
+    driver.shuntFor = 0;
+  }
+
+  // A car that noses into the wall would otherwise sit there: the normal
+  // controller only drives forwards, so it just keeps pressing into the
+  // barrier. Commit to the shunt once started, or reversing above the
+  // stuck threshold immediately cancels it and the car thrashes in place.
+  if (driver.shuntFor > 0) {
+    driver.shuntFor -= dt;
+    driver.steerState = 0;
+    return { throttle: 0, brake: 1, steer: 0, handbrake: 0, boost: 0 };
+  }
+  if (spd < 2.5) driver.stuckFor += dt;
+  else driver.stuckFor = 0;
+  if (driver.stuckFor > 1.5) { driver.shuntFor = 1.2; driver.stuckFor = 0; }
 
   // --- occasional human error ------------------------------------------
   driver.mistakeTimer -= dt;
@@ -114,8 +155,12 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   // --- how fast dare we go ----------------------------------------------
   const probe = 30 + spd * 3.0;
   const worst = track.worstCurvature(near.index + Math.round(6 * perMetre), probe);
+  // Long vehicles need a bigger margin than grip alone implies: steering lock
+  // falls off with speed, so an 11m bus physically cannot hold the line a
+  // taxi can, and it ends up understeering into the barrier.
+  const margin = 0.78 * THREE.MathUtils.clamp(1 - (body.spec.length - 5) * 0.035, 0.72, 1);
   const gripLimit = worst > 1e-4
-    ? Math.sqrt((body.spec.grip * 9.81 * 0.78) / worst)
+    ? Math.sqrt((body.spec.grip * 9.81 * margin) / worst)
     : Infinity;
 
   const cap = body.spec.topSpeed * driver.skill * rubber;
@@ -127,8 +172,12 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   else if (error > -0.5) throttle = 0.45;
   else brake = THREE.MathUtils.clamp(-error / 9, 0.12, 1);
 
-  // Off the racing surface? Back off and get back on.
-  if (Math.abs(near.lateral) > track.halfWidth) { throttle *= 0.55; brake = Math.max(brake, 0.2); }
+  // Off the racing surface? Lift and ease back on — but only while there is
+  // speed to scrub. Braking here at walking pace just pins the car to the wall.
+  if (Math.abs(near.lateral) > track.halfWidth) {
+    throttle *= 0.55;
+    if (spd > 8) brake = Math.max(brake, 0.2);
+  }
 
   // Mid-slide, trail off both pedals and let the front tyres pull it straight.
   // Braking here loads the front and unloads the rear, which deepens the spin.
@@ -145,6 +194,13 @@ export function driveAI(car, track, rivals, dt, rubber = 1) {
   const boost = (gripLimit > cap * 1.15 && spd > cap * 0.45 && driver.boostGreed > 0.25) ? 1 : 0;
 
   return { throttle, brake, steer: driver.steerState, handbrake, boost };
+}
+
+/** True once, if this driver has given up and wants putting back on the line. */
+export function takeRescue(driver) {
+  if (!driver?.rescue) return false;
+  driver.rescue = false;
+  return true;
 }
 
 function hash(n) {

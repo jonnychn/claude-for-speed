@@ -23,6 +23,9 @@ npm test         # headless handling + AI tests
 | 雪糕車 | **Ice Cream Van** | Soft-serve swirl on the roof. Slowest, but the nitrous plays the jingle. |
 | 舊款雙層巴士 | **Double Decker** | Non-aircon "hot dog" bus. 11 tonnes. Understeers like a barge, wins every collision. |
 
+Reverse is on the brake: hold it for a beat once you have stopped and the car
+backs up at a manoeuvring crawl. Throttle gets you going forwards again.
+
 ## Modes
 
 - **街頭賽 Quick Race** — four AI rivals, one of each other vehicle, grid start
@@ -34,7 +37,9 @@ npm test         # headless handling + AI tests
 
 | | |
 |---|---|
-| `W A S D` / arrows | Steer, throttle, brake (hold brake at a stop to reverse) |
+| `W` / `↑` | Throttle |
+| `S` / `↓` | Brake. Keep it held for a moment once stopped and the car reverses |
+| `A` `D` / `←` `→` | Steer |
 | `Space` | Handbrake |
 | `Shift` | Nitrous |
 | `C` | Cycle chase / bonnet / cinematic camera |
@@ -75,6 +80,11 @@ is, derives a grip-limited entry speed from it, and aims at a point on the
 spline offset toward the apex. Each driver has its own line bias, aggression,
 reaction lag and an occasional deliberate mistake, and the field rubber-bands
 gently toward the player so a race in the bus is still a race.
+
+A driver that noses into a barrier shunts backwards to free itself. If it still
+has not covered 25 metres after six seconds — wedged, or facing the wrong way
+after a spin, neither of which reversing fixes — it is quietly put back on the
+racing line, the same recovery the player gets from `R`.
 
 ### Tests
 

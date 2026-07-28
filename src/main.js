@@ -6,7 +6,7 @@ import { Track } from './track.js';
 import { City } from './city.js';
 import { VEHICLES, getVehicle, buildModel } from './vehicles.js';
 import { createBody, step, clampToTrack, resolveCarCollision, speed, forwardVector, leftVector } from './physics.js';
-import { createDriver, driveAI, driverName } from './ai.js';
+import { createDriver, driveAI, driverName, takeRescue } from './ai.js';
 import { Effects } from './effects.js';
 import { Minimap } from './minimap.js';
 import { Input } from './input.js';
@@ -326,17 +326,20 @@ class Game {
     if (this.input.tapped('KeyH')) this.ui.cycleHints();
   }
 
-  #respawn(car) {
+  #respawn(car, announce = true) {
     const near = this.track.nearest(car.body.pos, car.near.index);
     const p = this.track.offsetPoint(near.index + 4, THREE.MathUtils.clamp(near.lateral, -6, 6));
     const t = this.track.tangentAt(near.index + 4);
     car.body.pos.copy(p);
     car.body.yaw = Math.atan2(t.x, t.z);
-    car.body.u = Math.min(car.body.u, 8);
+    // Clamp to a forward roll: a car rescued mid-reverse would otherwise be
+    // put back on the line still travelling backwards.
+    car.body.u = THREE.MathUtils.clamp(car.body.u, 0, 8);
     car.body.w = 0;
     car.body.r = 0;
     car.body.lean = 0;
-    this.ui.toast('Back on track', '返回賽道', 1100);
+    car.body.reverseArm = 0;
+    if (announce) this.ui.toast('Back on track', '返回賽道', 1100);
   }
 
   #tickCountdown(dt) {
@@ -366,10 +369,13 @@ class Game {
         // Locked on the grid — blip the throttle but go nowhere.
         input = NEUTRAL_INPUT;
       } else if (car.isPlayer) {
-        input = car.finished ? { ...NEUTRAL_INPUT, brake: 0.4 } : this.input.read(dt, speed(car.body));
+        // Coast to a halt on the handbrake, not the brake — the brake doubles
+        // as reverse, and would back the car down the road after the finish.
+        input = car.finished ? { ...NEUTRAL_INPUT, handbrake: 1 } : this.input.read(dt, speed(car.body));
       } else {
         const rubber = this.#rubberBand(car);
         input = driveAI(car, this.track, this.cars, dt, car.finished ? 0.75 : rubber);
+        if (takeRescue(car.driver)) this.#respawn(car, false);
       }
       car.input = input;
       step(car.body, input, dt);
